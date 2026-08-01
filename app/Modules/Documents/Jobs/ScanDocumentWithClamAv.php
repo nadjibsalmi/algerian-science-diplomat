@@ -31,33 +31,75 @@ class ScanDocumentWithClamAv implements ShouldQueue
             return;
         }
 
-        $tempPath = $this->downloadToTemp();
+        $tempPath = null;
 
         try {
-            $result = $this->scanWithClamAv($tempPath);
-            $isClean = $result === 'OK';
+            $tempPath = $this->downloadToTemp();
 
-            $this->document->update([
-                'status'           => $isClean ? Document::STATUS_CLEAN : Document::STATUS_INFECTED,
-                'virus_scan_result'=> $result,
-                'virus_scanned_at' => now(),
-            ]);
+            try {
+                $result = $this->scanWithClamAv($tempPath);
+                $isClean = $result === 'OK';
 
-            if (! $isClean) {
-                // Delete infected file from storage immediately
-                Storage::disk($this->document->disk)->delete($this->document->path);
-                activity()->performedOn($this->document)->log("Virus detected: {$result}");
+                $this->document->update([
+                    'status'           => $isClean ? Document::STATUS_CLEAN : Document::STATUS_INFECTED,
+                    'virus_scan_result'=> $result,
+                    'virus_scanned_at' => now(),
+                ]);
+
+                if (! $isClean) {
+                    // Move infected file to a quarantine area instead of deleting immediately
+                    $quarantinePath = 'quarantine/' . ltrim($this->document->path, '/');
+
+                    try {
+                        Storage::disk($this->document->disk)->move($this->document->path, $quarantinePath);
+                        activity()->performedOn($this->document)->log("Virus detected and file moved to quarantine: {$result}");
+                        $this->document->update(['path' => $quarantinePath]);
+                    } catch (\Throwable $e) {
+                        // If move fails, delete as fallback but log the failure
+                        Storage::disk($this->document->disk)->delete($this->document->path);
+                        activity()->performedOn($this->document)->log("Virus detected and file deleted (move failed): {$result}");
+                    }
+                }
+            } catch (\RuntimeException $e) {
+                // ClamAV unreachable or protocol error — mark as pending scan and record reason
+                $this->document->update([
+                    'status'            => Document::STATUS_PENDING,
+                    'virus_scan_result' => 'clamav_unreachable: ' . $e->getMessage(),
+                ]);
+                activity()->performedOn($this->document)->log('ClamAV unreachable; scan deferred');
             }
         } finally {
-            @unlink($tempPath);
+            if ($tempPath && file_exists($tempPath)) {
+                @unlink($tempPath);
+            }
         }
     }
 
     private function downloadToTemp(): string
     {
-        $content  = Storage::disk($this->document->disk)->get($this->document->path);
-        $tempPath = sys_get_temp_dir() . '/' . uniqid('asd_scan_', true);
-        file_put_contents($tempPath, $content);
+        $disk = $this->document->disk;
+        $stream = Storage::disk($disk)->readStream($this->document->path);
+        if ($stream === false) {
+            throw new \RuntimeException('Failed to open stream from storage');
+        }
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'asd_scan_');
+        if ($tempPath === false) {
+            throw new \RuntimeException('Failed to create temp file');
+        }
+
+        $out = fopen($tempPath, 'wb');
+        if ($out === false) {
+            fclose($stream);
+            throw new \RuntimeException('Failed to open temp file for writing');
+        }
+
+        try {
+            stream_copy_to_stream($stream, $out);
+        } finally {
+            fclose($stream);
+            fclose($out);
+        }
 
         return $tempPath;
     }
@@ -72,20 +114,37 @@ class ScanDocumentWithClamAv implements ShouldQueue
             throw new \RuntimeException("ClamAV unreachable: {$errstr} ({$errno})");
         }
 
-        $fileSize = filesize($filePath);
-        $handle   = fopen($filePath, 'rb');
-
-        fwrite($socket, "zINSTREAM\0");
-        fwrite($socket, pack('N', $fileSize));
-
-        while (! feof($handle)) {
-            fwrite($socket, fread($handle, 8192));
+        $handle = fopen($filePath, 'rb');
+        if ($handle === false) {
+            fclose($socket);
+            throw new \RuntimeException('Failed to open temp file for scanning');
         }
-        fclose($handle);
 
-        fwrite($socket, pack('N', 0));
-        $result = rtrim(fgets($socket), "\0\n");
-        fclose($socket);
+        // INSTREAM protocol: send zINSTREAM\0 then chunks prefixed by 4-byte length
+        fwrite($socket, "zINSTREAM\0");
+
+        try {
+            while (! feof($handle)) {
+                $chunk = fread($handle, 8192);
+                if ($chunk === false) {
+                    throw new \RuntimeException('Failed to read temp file during scan');
+                }
+
+                $len = strlen($chunk);
+                if ($len > 0) {
+                    fwrite($socket, pack('N', $len));
+                    fwrite($socket, $chunk);
+                }
+            }
+
+            // signal end
+            fwrite($socket, pack('N', 0));
+
+            $result = rtrim(fgets($socket), "\0\n");
+        } finally {
+            fclose($handle);
+            fclose($socket);
+        }
 
         // Result format: "stream: OK" or "stream: Win.Trojan.Example FOUND"
         return str_contains($result, ': OK') ? 'OK' : trim(str_replace(['stream: ', ' FOUND'], '', $result));
