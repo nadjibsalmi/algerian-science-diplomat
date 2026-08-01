@@ -117,20 +117,20 @@ class OfferService
 
     public function expire(): int
     {
-        return DB::transaction(function (): int {
-            $count = 0;
-            Offer::query()->expired()->chunkById(100, function ($offers) use (&$count): void {
-                foreach ($offers as $offer) {
-                    $offer->forceFill([
-                        'status' => 'closed',
-                        'closed_at' => now(),
-                    ])->save();
-                    $count++;
-                }
-            });
+        $count = 0;
 
-            return $count;
+        Offer::query()->expired()->chunkById(100, function ($offers) use (&$count): void {
+            foreach ($offers as $offer) {
+                // Update each offer independently to avoid long-running transactions
+                $offer->forceFill([
+                    'status' => 'closed',
+                    'closed_at' => now(),
+                ])->save();
+                $count++;
+            }
         });
+
+        return $count;
     }
 
     private function ensureEditable(Offer $offer): void

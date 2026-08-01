@@ -36,6 +36,9 @@ class LoginController extends Controller
             return back()->withErrors(['email' => __('auth.failed')])->withInput($request->only('email'));
         }
 
+        // Regenerate session immediately after successful authentication to prevent session fixation
+        $request->session()->regenerate();
+
         $request->clearRateLimiter();
 
         // Log last login IP (for security alerts)
@@ -51,8 +54,6 @@ class LoginController extends Controller
 
             return redirect()->route('two-factor.challenge');
         }
-
-        $request->session()->regenerate();
 
         return redirect()->intended($this->redirectPath($user));
     }

@@ -39,7 +39,7 @@ class ApplicationService
                 'answers'             => $data['answers'] ?? null,
                 'submitted_at'        => now(),
                 'eligibility_passed'  => $eligibility['passed'],
-                'eligibility_details' => $eligibility['details'],
+                'eligibility_details' => $eligibility['details'] ?? null,
             ]);
 
             // Attach documents
