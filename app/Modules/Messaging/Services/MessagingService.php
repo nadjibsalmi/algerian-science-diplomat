@@ -60,7 +60,7 @@ class MessagingService
                 'type' => 'text',
             ]);
 
-            if ($attachmentIds !== []) {
+            if (! empty($attachmentIds)) {
                 $message->attachments()->sync($attachmentIds);
             }
 

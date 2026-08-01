@@ -13,6 +13,8 @@ use Illuminate\Validation\ValidationException;
 
 class ApplicationService
 {
+    public function __construct(private readonly EligibilityService $eligibilityService) {}
+
     public function submit(User $candidate, Offer $offer, array $data): Application
     {
         abort_unless($offer->status === 'published', 422, 'Cette offre n’est plus ouverte.');
@@ -22,8 +24,7 @@ class ApplicationService
         }
 
         // Check eligibility
-        $eligibilityService = app(EligibilityService::class);
-        $eligibility = $eligibilityService->check($candidate, $offer);
+        $eligibility = $this->eligibilityService->check($candidate, $offer);
 
         if (! $eligibility['passed']) {
             abort(422, __('applications.not_eligible'), ['details' => $eligibility]);
@@ -39,7 +40,7 @@ class ApplicationService
                 'answers'             => $data['answers'] ?? null,
                 'submitted_at'        => now(),
                 'eligibility_passed'  => $eligibility['passed'],
-                'eligibility_details' => $eligibility['details'],
+                'eligibility_details' => $eligibility['details'] ?? null,
             ]);
 
             // Attach documents

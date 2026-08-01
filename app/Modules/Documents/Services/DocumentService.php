@@ -37,7 +37,7 @@ class DocumentService
             'name'              => $data['name'],
             'original_filename' => $file->getClientOriginalName(),
             'path'              => $path,
-            'disk'              => config('filesystems.default', 's3'),
+            'disk'              => config('filesystems.default', 'local'),
             'mime_type'         => $file->getMimeType(),
             'size_bytes'        => $file->getSize(),
             'status'            => Document::STATUS_PENDING,
@@ -46,8 +46,8 @@ class DocumentService
             'version'           => $version,
         ]);
 
-        // Dispatch async ClamAV scan
-        ScanDocumentWithClamAv::dispatch($document)->onQueue('documents');
+        // Dispatch async ClamAV scan — schedule only after DB commit to ensure job can load the document
+        ScanDocumentWithClamAv::dispatch($document)->onQueue('documents')->afterCommit();
 
         activity()->causedBy($user)->performedOn($document)->log('Document uploaded');
 
@@ -113,11 +113,14 @@ class DocumentService
         $filename  = Str::uuid() . '.' . $extension;
         $path      = "candidates/{$user->id}/documents/{$filename}";
 
-        Storage::disk(config('filesystems.default', 's3'))->putFileAs(
+        $disk = config('filesystems.default', 'local');
+
+        // Use streamed upload to avoid loading the entire file into memory
+        Storage::disk($disk)->putFileAs(
             "candidates/{$user->id}/documents",
             $file,
             $filename,
-            ['visibility' => 'private'],
+            ['visibility' => 'private']
         );
 
         return $path;
@@ -135,7 +138,26 @@ class DocumentService
 
     private function validateMimeType(UploadedFile $file): void
     {
-        if (! in_array($file->getMimeType(), self::ALLOWED_MIMES, true)) {
+        // Prefer server-detected MIME type using Fileinfo for stronger checks
+        $clientMime = $file->getClientMimeType() ?: $file->getMimeType();
+        $detectedMime = null;
+
+        try {
+            if (is_readable($file->getRealPath() ?: $file->getPathname())) {
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                if ($finfo !== false) {
+                    $detectedMime = finfo_file($finfo, $file->getRealPath() ?: $file->getPathname());
+                    finfo_close($finfo);
+                }
+            }
+        } catch (\Throwable $e) {
+            // If detection fails, fall back to the client-provided mime type
+            $detectedMime = $clientMime;
+        }
+
+        $mimeToCheck = $detectedMime ?? $clientMime;
+
+        if (! in_array($mimeToCheck, self::ALLOWED_MIMES, true)) {
             abort(422, __('documents.invalid_mime'));
         }
 

@@ -36,6 +36,9 @@ class LoginController extends Controller
             return back()->withErrors(['email' => __('auth.failed')])->withInput($request->only('email'));
         }
 
+        // Regenerate session immediately after successful authentication to prevent session fixation
+        $request->session()->regenerate();
+
         $request->clearRateLimiter();
 
         // Log last login IP (for security alerts)
@@ -46,13 +49,14 @@ class LoginController extends Controller
 
         // If 2FA is enabled, redirect to challenge page
         if ($user->two_factor_secret !== null) {
-            session(['auth.2fa_user_id' => $user->id]);
+            // Log the user out from the guard but preserve a short-lived session key
             auth()->logout();
+            session(['auth.2fa_user_id' => $user->id]);
+            // Regenerate session after placing the 2FA token to avoid fixation
+            $request->session()->regenerate();
 
             return redirect()->route('two-factor.challenge');
         }
-
-        $request->session()->regenerate();
 
         return redirect()->intended($this->redirectPath($user));
     }

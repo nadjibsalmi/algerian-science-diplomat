@@ -17,7 +17,7 @@ class SendSearchAlertsJob implements ShouldQueue
 
     public function handle(): void
     {
-        SearchAlert::query()->where('active', true)->chunkById(100, function ($alerts): void {
+        SearchAlert::query()->where('active', true)->with('user')->chunkById(100, function ($alerts): void {
             foreach ($alerts as $alert) {
                 $query = Offer::query()->published();
                 foreach ($alert->filters ?? [] as $field => $value) {

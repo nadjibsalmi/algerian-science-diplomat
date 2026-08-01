@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Support\Facades\DB;
 
 class Application extends Model
 {
@@ -76,21 +77,23 @@ class Application extends Model
 
     public function transitionStatus(string $newStatus, User $changedBy, ?string $note = null): void
     {
-        $oldStatus = $this->status;
+        DB::transaction(function () use ($newStatus, $changedBy, $note): void {
+            $oldStatus = $this->status;
 
-        $this->update(['status' => $newStatus]);
+            $this->update(['status' => $newStatus]);
 
-        ApplicationStatusHistory::create([
-            'application_id'    => $this->id,
-            'from_status'       => $oldStatus,
-            'to_status'         => $newStatus,
-            'changed_by_user_id'=> $changedBy->id,
-            'note'              => $note,
-        ]);
+            ApplicationStatusHistory::create([
+                'application_id'    => $this->id,
+                'from_status'       => $oldStatus,
+                'to_status'         => $newStatus,
+                'changed_by_user_id'=> $changedBy->id,
+                'note'              => $note,
+            ]);
 
-        activity()->causedBy($changedBy)->performedOn($this)
-            ->withProperties(['from' => $oldStatus, 'to' => $newStatus])
-            ->log('Application status changed');
+            activity()->causedBy($changedBy)->performedOn($this)
+                ->withProperties(['from' => $oldStatus, 'to' => $newStatus])
+                ->log('Application status changed');
+        });
     }
 
     public function getActivitylogOptions(): LogOptions

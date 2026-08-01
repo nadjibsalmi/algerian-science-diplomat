@@ -52,7 +52,7 @@ class EmbassyService
                 'lastname' => $user->lastname,
                 'email' => $user->email,
                 'status' => $user->status,
-                'role_in_embassy' => $user->pivot->role_in_embassy,
+                'role_in_embassy' => $user->pivot->role_in_embassy ?? null,
             ]);
     }
 
@@ -176,6 +176,7 @@ class EmbassyService
             'director' => 'Embassy Director',
             'recruiter' => 'Embassy Recruiter',
             'hr' => 'Embassy HR',
+            default => throw ValidationException::withMessages(['role_in_embassy' => 'Role invalide pour l\'invitation.']),
         };
     }
 
