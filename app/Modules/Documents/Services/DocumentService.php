@@ -46,8 +46,8 @@ class DocumentService
             'version'           => $version,
         ]);
 
-        // Dispatch async ClamAV scan
-        ScanDocumentWithClamAv::dispatch($document)->onQueue('documents');
+        // Dispatch async ClamAV scan — schedule only after DB commit to ensure job can load the document
+        ScanDocumentWithClamAv::dispatch($document)->onQueue('documents')->afterCommit();
 
         activity()->causedBy($user)->performedOn($document)->log('Document uploaded');
 
