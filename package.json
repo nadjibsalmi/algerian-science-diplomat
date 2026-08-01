@@ -1,0 +1,11 @@
+{
+  "$schema": "https://www.schemastore.org/package.json",
+  "name": "algerian-science-diplomat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @workspace/asd-frontend run build",
+    "dev": "pnpm --filter @workspace/asd-frontend run dev",
+    "typecheck": "pnpm --filter @workspace/asd-frontend run type-check"
+  }
+}

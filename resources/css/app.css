@@ -1,0 +1,37 @@
+@import 'tailwindcss';
+
+/* Audit fix: replaced the catch-all ../**\/*.js source with the two
+   extensions actually used in this project. Plain .js files don't
+   exist in resources/js (everything is .ts or .vue), so the old glob
+   scanned files that could never contain Tailwind classes. */
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.ts';
+@source '../**/*.vue';
+
+@theme {
+    /* Typography */
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* ASD brand palette */
+    --color-asd-navy:   #0B1F3A;
+    --color-asd-green:  #006233;
+    --color-asd-red:    #D21034;
+    --color-asd-gold:   #C9A227;
+    --color-asd-bg:     #F4F6F8;
+    --color-asd-muted:  #2F6B4F;
+
+    /* Status colors */
+    --color-status-pending:     #ca8a04;
+    --color-status-under-review: #2563eb;
+    --color-status-accepted:    #16a34a;
+    --color-status-rejected:    #dc2626;
+    --color-status-withdrawn:   #6b7280;
+}
+
+/* ── RTL logical property helpers ──────────────────────────── */
+[dir='rtl'] {
+    font-family: 'Noto Sans Arabic', var(--font-sans);
+}

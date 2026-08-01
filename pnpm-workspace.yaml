@@ -1,0 +1,16 @@
+minimumReleaseAge: 1440
+
+packages:
+  - artifacts/*
+
+catalog:
+  '@types/node': ^25.3.3
+  '@vitejs/plugin-vue': ^6.0.8
+  vite: ^7.3.2
+
+autoInstallPeers: false
+
+onlyBuiltDependencies:
+  - esbuild
+  - msw
+  - unrs-resolver

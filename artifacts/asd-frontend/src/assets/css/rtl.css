@@ -1,0 +1,89 @@
+/* ============================================================
+   ASD — RTL (Right-to-Left) Support
+   Applied automatically when document dir="rtl" (Arabic)
+   Uses CSS logical properties throughout for bidirectional support.
+   ============================================================ */
+
+/* ── Font override for RTL ──────────────────────────────── */
+[dir="rtl"],
+[dir="rtl"] body {
+  font-family: "Noto Sans Arabic", "Inter", system-ui, sans-serif;
+  letter-spacing: 0; /* Arabic script doesn't need tracking */
+}
+
+/* ── Text alignment ─────────────────────────────────────── */
+[dir="rtl"] {
+  text-align: start; /* Automatically right in RTL */
+}
+
+/* ── Headings — reduce negative tracking for Arabic ─────── */
+[dir="rtl"] h1,
+[dir="rtl"] h2,
+[dir="rtl"] h3,
+[dir="rtl"] h4,
+[dir="rtl"] h5,
+[dir="rtl"] h6 {
+  letter-spacing: 0;
+}
+
+/* ── Form inputs ────────────────────────────────────────── */
+[dir="rtl"] input,
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: start;
+}
+
+/* ── Numbers and code remain LTR inside RTL ─────────────── */
+[dir="rtl"] code,
+[dir="rtl"] pre,
+[dir="rtl"] .ltr,
+[dir="rtl"] time,
+[dir="rtl"] .tabular-nums {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* ── Logical property helpers (use these in components) ─── */
+/*
+  Prefer CSS logical properties in component styles:
+    margin-inline-start  instead of  margin-left
+    margin-inline-end    instead of  margin-right
+    padding-inline-start instead of  padding-left
+    padding-inline-end   instead of  padding-right
+    border-inline-start  instead of  border-left
+    border-inline-end    instead of  border-right
+    inset-inline-start   instead of  left
+    inset-inline-end     instead of  right
+    text-align: start    instead of  text-align: left
+    text-align: end      instead of  text-align: right
+
+  These work correctly in both LTR and RTL without any extra CSS.
+*/
+
+/* ── Flip chevrons / directional icons ──────────────────── */
+[dir="rtl"] .icon-chevron-right,
+[dir="rtl"] .icon-arrow-right,
+[dir="rtl"] .icon-chevron-left,
+[dir="rtl"] .icon-arrow-left,
+[dir="rtl"] [data-rtl-flip] {
+  transform: scaleX(-1);
+}
+
+/* ── Scrollbar position ──────────────────────────────────── */
+[dir="rtl"] * {
+  scrollbar-gutter: stable;
+}
+
+/* ── RTL-aware layout utilities ─────────────────────────── */
+[dir="rtl"] .ml-auto { margin-inline-end: auto; margin-inline-start: unset; }
+[dir="rtl"] .mr-auto { margin-inline-start: auto; margin-inline-end: unset; }
+
+/* ── Alert border direction ──────────────────────────────── */
+/* BaseAlert already uses border-inline-start (logical), no override needed */
+
+/* ── Animation direction ─────────────────────────────────── */
+[dir="rtl"] .slide-in-right-enter-from { transform: translateX(1rem); }
+[dir="rtl"] .slide-in-left-enter-from  { transform: translateX(-1rem); }
+
+/* ── Sidebar mirroring is handled via logical properties ─── */
+/* DefaultLayout uses border-inline-end/start which auto-mirrors */

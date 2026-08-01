@@ -1,0 +1,25 @@
+FROM php:8.4-fpm-alpine
+
+WORKDIR /var/www
+
+RUN apk add --no-cache \
+    bash curl git unzip libpng-dev libjpeg-turbo-dev libwebp-dev \
+    freetype-dev libzip-dev icu-dev oniguruma-dev postgresql-dev \
+    supervisor nodejs npm
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+ && docker-php-ext-install \
+    pdo pdo_pgsql pgsql \
+    gd zip intl bcmath mbstring opcache pcntl
+
+RUN pecl install redis xdebug \
+ && docker-php-ext-enable redis xdebug
+
+COPY --from=composer:2.8 /usr/bin/composer /usr/bin/composer
+
+COPY docker/app/php.ini /usr/local/etc/php/conf.d/app.ini
+COPY docker/app/php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
+COPY docker/app/xdebug.ini /usr/local/etc/php/conf.d/xdebug.ini
+
+EXPOSE 9000
+CMD ["php-fpm"]
