@@ -22,7 +22,7 @@
     "@types/node": "catalog:",
     "@vitejs/plugin-vue": "^6.0.8",
     "@vue/eslint-config-typescript": "^14.4.0",
-    "@vue/tsconfig": "^0.7.0",
+    "@vue/tsconfig": "^0.9.1",
     "eslint": "^9.20.0",
     "eslint-plugin-vue": "^9.32.0",
     "prettier": "^3.5.3",
