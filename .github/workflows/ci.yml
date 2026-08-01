@@ -72,7 +72,12 @@ jobs:
           git add composer.lock pnpm-lock.yaml || true
           if ! git diff --staged --quiet; then
             git commit -m "chore(ci): add generated lockfiles" || true
-            git push origin HEAD:${{ github.ref_name }}
+            # Push back to head branch (GITHUB_HEAD_REF is set in PR workflow)
+            if [ -n "$GITHUB_HEAD_REF" ]; then
+              git push origin HEAD:refs/heads/$GITHUB_HEAD_REF
+            else
+              git push
+            fi
           else
             echo "No lockfile changes"
           fi
