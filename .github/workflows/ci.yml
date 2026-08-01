@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
@@ -55,6 +55,26 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --no-frozen-lockfile
+
+      - name: Generate and commit lockfiles (composer & pnpm)
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+        run: |
+          set -e
+          # Install PHP deps to generate composer.lock if missing
+          composer install --no-interaction --prefer-dist || true
+          # Create pnpm lockfile only
+          pnpm install --lockfile-only || true
+          git config user.name "$GIT_AUTHOR_NAME"
+          git config user.email "$GIT_AUTHOR_EMAIL"
+          git add composer.lock pnpm-lock.yaml || true
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(ci): add generated lockfiles" || true
+            git push origin HEAD:${{ github.ref_name }}
+          else
+            echo "No lockfile changes"
+          fi
 
       - name: Composer audit
         run: composer audit || true
