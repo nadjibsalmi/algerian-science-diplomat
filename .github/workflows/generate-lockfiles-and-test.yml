@@ -1,0 +1,78 @@
+name: Generate lockfiles and run tests
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, fileinfo, pdo_sqlite
+
+      - name: Ensure composer is available
+        run: composer --version
+
+      - name: Install Composer dependencies (including dev)
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env || true
+          php -r "file_exists('database/database.sqlite') || mkdir('database') && touch('database/database.sqlite');"
+          php artisan key:generate --ansi || true
+        env:
+          APP_ENV: testing
+
+      - name: Run migrations (sqlite)
+        run: php artisan migrate --force
+
+      - name: Run PHP unit tests
+        run: composer test
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install frontend lockfile only
+        run: pnpm install --lockfile-only
+
+      - name: Check for lockfile changes and commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add composer.lock pnpm-lock.yaml || true
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: add generated lockfiles (composer.lock, pnpm-lock.yaml) [ci skip]" || true
+            git push origin HEAD:${{ github.ref_name }}
+          else
+            echo "No lockfile changes"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Frontend typecheck
+        run: pnpm --filter @workspace/asd-frontend run type-check
+
+      - name: Composer audit
+        run: composer audit || true
+
+      - name: Frontend audit
+        run: pnpm audit --json || true
