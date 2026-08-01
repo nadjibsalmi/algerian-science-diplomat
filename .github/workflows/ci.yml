@@ -18,6 +18,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Check for lockfiles (warning only)
+        run: |
+          if [ ! -f composer.lock ]; then
+            echo "::warning file=composer.lock::composer.lock is missing in the repository. Generate and commit it from a controlled environment."
+          fi
+          if [ ! -f pnpm-lock.yaml ] && [ ! -f package-lock.json ]; then
+            echo "::warning ::No frontend lockfile (pnpm-lock.yaml or package-lock.json) found. Commit a lockfile for reproducible installs."
+          fi
+
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
