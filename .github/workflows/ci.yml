@@ -47,5 +47,11 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Composer audit
+        run: composer audit || true
+
+      - name: Frontend audit
+        run: pnpm audit --json || true
+
       - name: Typecheck frontend
         run: pnpm --filter @workspace/asd-frontend run type-check
