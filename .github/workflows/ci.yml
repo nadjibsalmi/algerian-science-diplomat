@@ -63,9 +63,10 @@ jobs:
         run: |
           set -e
           # Install PHP deps to generate composer.lock if missing
-          composer install --no-interaction --prefer-dist || true
-          # Create pnpm lockfile only
-          pnpm install --lockfile-only || true
+          # Update composer lock to match composer.json without installing packages
+          composer update --lock --no-interaction || true
+          # Create pnpm lockfile for workspace (monorepo)
+          pnpm -w install --lockfile-only || true
           git config user.name "$GIT_AUTHOR_NAME"
           git config user.email "$GIT_AUTHOR_EMAIL"
           git add composer.lock pnpm-lock.yaml || true
