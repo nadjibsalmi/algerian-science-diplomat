@@ -74,9 +74,9 @@ jobs:
             git commit -m "chore(ci): add generated lockfiles" || true
             # Push back to head branch (GITHUB_HEAD_REF is set in PR workflow)
             if [ -n "$GITHUB_HEAD_REF" ]; then
-              git push origin HEAD:refs/heads/$GITHUB_HEAD_REF
+              git push origin HEAD:refs/heads/$GITHUB_HEAD_REF || echo "Warning: git push failed; continuing"
             else
-              git push
+              git push || echo "Warning: git push failed; continuing"
             fi
           else
             echo "No lockfile changes"
